@@ -1,4 +1,3 @@
-#include <stdio.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/netfilter.h>
@@ -45,7 +44,7 @@ unsigned int hook_func(unsigned int hooknum,
 			int (*okfn)(struct sk_buff*))
 {
 	// acquire socket buffer
-	sock_buff = *skb;
+	sock_buff = skb;
 
 	// acquire ip header of packet
 	ip_header = (struct iphdr *)skb_network_header(sock_buff);
@@ -98,7 +97,7 @@ int Add_Rule(int blockControl, int portNumber, int ipAddress) {
 	// first check and see if we have a previous list
 	if (fw_head == NULL) {
 		// create list head if not
-		fw_head = malloc(sizeof(firewall_rule));
+		fw_head = vmalloc(sizeof(struct firewall_rule));
 		
 		fw_tail = fw_head;
 		fw_current = fw_head;
@@ -115,7 +114,7 @@ int Add_Rule(int blockControl, int portNumber, int ipAddress) {
 
 	// otherwise, insert new rule at end of list
 	else {
-		fw_current = malloc(sizeof(firewall_rule));
+		fw_current = vmalloc(sizeof(struct firewall_rule));
 		
 		// set info for new rule
 		fw_current->rule_number = (fw_tail->rule_number + 1);
@@ -131,8 +130,8 @@ int Add_Rule(int blockControl, int portNumber, int ipAddress) {
 		fw_tail = fw_current;
 	}
 
-	printk(KERN_INFO "New Firewall rule #%d created.\n", rule_number);
-	return rule_number;
+	printk(KERN_INFO "New Firewall rule #%d created.\n", fw_current->rule_number);
+	return fw_current->rule_number;
 }
 
 // function to remove firewall rule
@@ -151,10 +150,10 @@ int Remove_Rule(int ruleNumber) {
 				// if deleting head, check if there is more than one entry
 				if (fw_current->next_rule != NULL) {
 					fw_head = fw_current->next_rule;
-					free(fw_current);
+					vfree(fw_current);
 				}
 				else {
-					free(fw_current);
+					vfree(fw_current);
 					fw_current = fw_head = fw_tail = NULL;
 				}
 			}
@@ -162,14 +161,14 @@ int Remove_Rule(int ruleNumber) {
 				// if we get past above condition, head =/= tail
 				// to delete tail then, just set it back one reference on list
 				fw_tail = fw_tail->prev_rule;
-				free(fw_current);
+				vfree(fw_current);
 			}
 			else {
 				// we must be deleting an intermediate entry
 				fw_current->prev_rule->next_rule = fw_current->next_rule;
 				fw_current->next_rule->prev_rule = fw_current->prev_rule;
 				
-				free(fw_current);
+				vfree(fw_current);
 			}
 
 			// reset fw_current (can be null)
