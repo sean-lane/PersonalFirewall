@@ -8,6 +8,10 @@
 #include <linux/tcp.h>
 #include <linux/icmp.h>
 
+#define NETLINK_USER 10
+
+struct sock *nl_sk = NULL;
+
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Personal Firewall");
 MODULE_AUTHOR("Sean Lane and Brad Moran");
@@ -190,6 +194,41 @@ int Remove_Rule(int ruleNumber) {
 	return -1;
 }
 
+static void receive_msg(struct sk_buff *skb) {
+	struct nlmsghdr *nh;
+	int pid;
+	struct sk_buff *skb_out;
+	int msg_size;
+	char *msg = "Hello from kernel";
+	int res;
+	
+	printk(KERN_INFO "Entering: %s\n", __FUNCTION__);
+
+	msg_size = strlen (msg);
+
+	nh = (struct nlmsghdr *)skb->data;
+	printk(KERN_INFO "Netlink recceived msg payload: %s\n", (char *)nlmsg_data(nh));
+	pid = nh->nlmsg_pid;
+	
+	skb_out = nlmsg_new(msg_size, 0);
+
+	if(!skb_out) {
+		printk(KERN_ERR "Failed to allocate new skb\n");
+		return;
+	}
+	nh = nlmsg_put(skb_out, 0, 0, NLMSG_DONE, msg_size, 0);
+	NETLINK_CB(skb_out).dst_group = 0;
+	strncpy(nlmsg_data(nh), msg, msg_size);
+
+	res = nlmsg_unicast(nl_sk, skb_out, pid);
+
+	if(res < 0) {
+		printk(KERN_INFO "Error while sending back to user\n");
+	}
+
+
+}
+
 // Function to initialize firewall hooks
 int Start_Firewall(void)
 {
@@ -210,6 +249,16 @@ int Start_Firewall(void)
 
 	// return 0 (success)
 	printk(KERN_INFO "NF Hook Registered! \n");
+
+	printk(KERN_INFO "Attempting to creating Netlink socket\n");
+	nl_sk = netlink_kernel_create(&init_net, NETLINK_USER, 0, receive_msg, NULL, THIS_MODULE);
+	if(!nl_sk) {
+		printk(KERN_ALERT "Error creating socket.\n");
+		return -10;
+	}
+
+	printk(KERN_INFO "Netlink socket created.\n");
+	
 	return 0;
 }
 
@@ -219,6 +268,9 @@ void Stop_Firewall(void)
 	// deregister hook with netfilter
 	nf_unregister_hook(&nfho);
 	printk(KERN_INFO "NF Hook Removed! \n");
+
+	printk(KERN_INFO "Exiting module\n");
+	netlink_kernel_release(nl_sk);
 }
 
 // set module initialization / cleanup functions

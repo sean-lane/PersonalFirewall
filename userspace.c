@@ -43,7 +43,7 @@ void kernel_comm(char *str) {
 	src_addr.nl_family = AF_NETLINK;
 	src_addr.nl_pid = getpid();
 
-	bind(sock_fd, (stuct sockaddr *)&src_addr, sizeof(src_addr));
+	bind(sock_fd, (struct sockaddr *)&src_addr, sizeof(src_addr));
 
 	memset(&dest_addr, 0, sizeof(dest_addr));
 	memset(&dest_addr, 0, sizeof(dest_addr));
@@ -104,7 +104,7 @@ void new_rule_kernel_comm() {
 	printf("send new rule to kernel\n");
 	char new_rule[200];
 	//FIGURE THIS OUT FOR RULE SPECIFICS
-	sprintf(new_rule, "%s %s %s %s %s\n", print_value(rule.rule_number), print_value(rule.block_control), print_value(rule.protocol), print_value(rule.port_number), print_value(rule.ip_address));
+	sprintf(new_rule, "%s %s %s %s\n", print_value(rule.block_control), print_value(rule.protocol), print_value(rule.port_number), print_value(rule.ip_address));
 
 	printf("%s\n", new_rule);
 
