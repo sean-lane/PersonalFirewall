@@ -104,7 +104,7 @@ void new_rule_kernel_comm() {
 	printf("send new rule to kernel\n");
 	char new_rule[200];
 	//FIGURE THIS OUT FOR RULE SPECIFICS
-	sprintf(new_rule, "%s %s %s %s\n", print_value(rule.block_control), print_value(rule.protocol), print_value(rule.port_number), print_value(rule.ip_address));
+	sprintf(new_rule, "%s %s %s %s %s\n", "NEW", print_value(rule.block_control), print_value(rule.protocol), print_value(rule.port_number), print_value(rule.ip_address));
 
 	printf("%s\n", new_rule);
 
@@ -112,12 +112,22 @@ void new_rule_kernel_comm() {
 }
 
 void delete_rule_kernel_comm() {
+	printf("Send delete rule to kernel\n");
+	char *to_delete[100];
+	sprintf(to_delete, "%s %s\n", "DELETE", print_value(rule_delete.rule_num));
+	printf("%s\n", to_delete);
 
+	kernel_comm(to_delete);
 }
 
 //doesn't look like we can do this because there is no file to check the rules
-void print_rule() {
+void print_rules() {
+	printf("Send print rules to kernel\n");
+	char *do_print[5];
+	sprintf(do_print, "%s\n", "PRINT");
+	printf("Print Command: %s\n", do_print);
 
+	kernel_comm(do_print);
 }
 
 
@@ -189,9 +199,11 @@ int main(int argc, char**argv) {
 	} else if (command == 2) {
 		// SEND DELETE RULE TO KERNEL
 		printf("%s\n", "delete command");
+		delete_rule_kernel_comm();
 	} else if (command == 3) {
 		// GET PRINT PACKETS FROM KERNEL TO DISPLAY
 		printf("%s\n", "print command");
+		print_rules();
 	}
 	
 	if (optind < argc) {
