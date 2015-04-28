@@ -1,8 +1,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <getopt.h>
+#include <sys/socket.h>
+#include <linux/netlink.h>
 
 #define print_value(x) (x==NULL?"-" : x)
+#define NETLINK_USER 10
+#define PAYLOAD_SIZE 200
 
 // struct for holding rule information
 struct firewall_rule {
@@ -24,7 +28,51 @@ static struct firewall_rule_delete {
 
 // need send to proc funct
 void kernel_comm(char *str) {
+	struct nlmsghdr *nh = NULL;	//nmlsghdr with payload
+	struct sockaddr_nl src_addr, dest_addr;
+	struct iovec iov;
+	struct msghdr msg;
+	int sock_fd;
+
+	sock_fd = socket(PF_NETLINK, SOCK_RAW, NETLINK_USER);
+	if(sock_fd < 0) {
+		return -1;
+	}
+
+	memset(&src_addr, 0, sizeof(src_addr));
+	src_addr.nl_family = AF_NETLINK;
+	src_addr.nl_pid = getpid();
+
+	bind(sock_fd, (stuct sockaddr *)&src_addr, sizeof(src_addr));
+
+	memset(&dest_addr, 0, sizeof(dest_addr));
+	memset(&dest_addr, 0, sizeof(dest_addr));
+	dest_addr.nl_family = AF_NETLINK;
+	dest_addr.nl_pid = 0; // Linux Kernel pid
+	dest_addr.nl_groups = 0;
+
+	nh = (struct nlmsghdr *)malloc(NLMSG_SPACE(PAYLOAD_SIZE));
+	memset(nh, 0, NLMSG_SPACE(PAYLOAD_SIZE));
+	nh->nlmsg_len = NLMSG_SPACE(PAYLOAD_SIZE);
+	nh->nlmsg_pid = getpid();
+	nh->nlmsg_flags = 0;
+
+	strcpy(NLMSG_DATA(nh), str);
 	
+	iov.iov_base = (void *)nh;
+	iov.iov_len = nh->nlmsg_len;
+	msg.msg_name = (void *)&dest_addr;
+	msg.msg_namelen = sizeof(dest_addr);
+	msg.msg_iov = &iov;
+	msg.msg_iovlen = 1;
+
+	printf("Sending message to kernel: %s\n", NLMSG_DATA(nh));
+	sendmsg(sock_fd, &msg, 0);
+	printf("Waiting for message from kernel\n");
+
+	recvmsg(sock_fd, &msg, 0);
+	printf("Received message payload: %s\n", NLMSG_DATA(nh));
+	close(sock_fd);
 }
 
 // encode command line input for protocol
@@ -53,9 +101,14 @@ int get_block_control(char* blockControl) {
 }
 
 void new_rule_kernel_comm() {
-	//printf("send new rule to kernel\n");
+	printf("send new rule to kernel\n");
 	char new_rule[200];
 	//FIGURE THIS OUT FOR RULE SPECIFICS
+	sprintf(new_rule, "%s %s %s %s %s\n", print_value(rule.rule_number), print_value(rule.block_control), print_value(rule.protocol), print_value(rule.port_number), print_value(rule.ip_address));
+
+	printf("%s\n", new_rule);
+
+	kernel_comm(new_rule);
 }
 
 void delete_rule_kernel_comm() {
@@ -132,6 +185,7 @@ int main(int argc, char**argv) {
 	if(command == 1) {
 		//SEND NEW RULE TO KERNEL
 		printf("%s\n", "new command");
+		new_rule_kernel_comm();	
 	} else if (command == 2) {
 		// SEND DELETE RULE TO KERNEL
 		printf("%s\n", "delete command");
