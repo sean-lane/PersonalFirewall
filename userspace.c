@@ -7,6 +7,11 @@
 #define print_value(x) (x==NULL?"-" : x)
 #define NETLINK_USER 31
 #define PAYLOAD_SIZE 200
+struct nlmsghdr *nh = NULL;	//nmlsghdr with payload
+struct sockaddr_nl src_addr, dest_addr;
+struct iovec iov;
+struct msghdr msg;
+int sock_fd;
 
 // struct for holding rule information
 struct firewall_rule {
@@ -27,12 +32,7 @@ static struct firewall_rule_delete {
 } rule_delete;
 
 // need send to proc funct
-void kernel_comm(char *str) {
-	struct nlmsghdr *nh = NULL;	//nmlsghdr with payload
-	struct sockaddr_nl src_addr, dest_addr;
-	struct iovec iov;
-	struct msghdr msg;
-	int sock_fd;
+static void kernel_comm(char *str) {
 
 	sock_fd = socket(PF_NETLINK, SOCK_RAW, NETLINK_USER);
 	if(sock_fd < 0) {
