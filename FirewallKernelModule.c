@@ -239,6 +239,7 @@ static void receive_msg(struct sk_buff *skb)
 	} else {
 		return command not recognized message
 	}
+	*/
 	
 	pid = nh->nlmsg_pid;
 	
