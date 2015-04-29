@@ -8,7 +8,14 @@
 #include <linux/tcp.h>
 #include <linux/icmp.h>
 
-#define NETLINK_USER 10
+#include <linux/init.h>
+#include <net/sock.h>
+#include <linux/socket.h>
+#include <linux/net.h>
+#include <asm/types.h>
+#include <linux/netlink.h>
+
+#define NETLINK_USER 31
 
 struct sock *nl_sk = NULL;
 
@@ -24,6 +31,8 @@ struct iphdr *ip_header;
 struct udphdr *udp_header;
 struct tcphdr *tcp_header;
 struct icmphdr *icmp_header;
+
+
 
 // Command structure for setting up a netfilter hook
 static struct nf_hook_ops nfho;
@@ -65,7 +74,7 @@ unsigned int hook_func(unsigned int hooknum,
 		icmp_header = (struct icmphdr *)skb_transport_header(sock_buff);
 		
 		printk(KERN_INFO "ICMP packet dropped! \n");   
-                return NF_DROP;
+                return NF_ACCEPT;
 	}
 
 	// check if tcp
@@ -74,7 +83,7 @@ unsigned int hook_func(unsigned int hooknum,
 		tcp_header = (struct tcphdr *)skb_transport_header(sock_buff);
 
 		printk(KERN_INFO "TCP packet dropped! \n");   
-                return NF_DROP;
+                return NF_ACCEPT;
 	}
 
 	// check if UDP
@@ -83,7 +92,7 @@ unsigned int hook_func(unsigned int hooknum,
                 udp_header = (struct udphdr *)skb_transport_header(sock_buff);
  
                 printk(KERN_INFO "UDP packet dropped! \n");   
-                return NF_DROP;
+                return NF_ACCEPT;
         }
 
 	else {
@@ -91,7 +100,7 @@ unsigned int hook_func(unsigned int hooknum,
 		printk(KERN_INFO "Other packet Dropped! \n");
 
 		// drop the packet
-		return NF_DROP;
+		return NF_ACCEPT;
 	}
 }
 
@@ -194,7 +203,9 @@ int Remove_Rule(int ruleNumber) {
 	return -1;
 }
 
-static void receive_msg(struct sk_buff *skb) {
+static void receive_msg(struct sk_buff *skb) 
+{
+
 	struct nlmsghdr *nh;
 	int pid;
 	struct sk_buff *skb_out;
@@ -225,13 +236,27 @@ static void receive_msg(struct sk_buff *skb) {
 	if(res < 0) {
 		printk(KERN_INFO "Error while sending back to user\n");
 	}
-
-
 }
 
 // Function to initialize firewall hooks
-int Start_Firewall(void)
+static int Start_Firewall(void)
 {
+	// Attempt to create socket
+	printk(KERN_INFO "Attempting to create Netlink socket\n");
+	
+	struct netlink_kernel_cfg cfg = {
+		.groups = 1,
+                .input = receive_msg,
+        };
+        nl_sk = netlink_kernel_create(&init_net, NETLINK_USER, &cfg);
+	
+	if(!nl_sk) {
+		printk(KERN_ALERT "Error creating socket.\n");
+		return -10;
+	}
+
+	printk(KERN_INFO "Netlink socket created.\n");
+	
 	//function to call when conditions below met
 	nfho.hook = hook_func;
 
@@ -250,27 +275,23 @@ int Start_Firewall(void)
 	// return 0 (success)
 	printk(KERN_INFO "NF Hook Registered! \n");
 
-	printk(KERN_INFO "Attempting to creating Netlink socket\n");
-	nl_sk = netlink_kernel_create(&init_net, NETLINK_USER, 0, receive_msg, NULL, THIS_MODULE);
-	if(!nl_sk) {
-		printk(KERN_ALERT "Error creating socket.\n");
-		return -10;
-	}
-
-	printk(KERN_INFO "Netlink socket created.\n");
+	
 	
 	return 0;
 }
 
 // function to clean up firewall data
-void Stop_Firewall(void)
+static void Stop_Firewall(void)
 {
+	// free socket
+	netlink_kernel_release(nl_sk);
+	printk(KERN_INFO "Netlink socket released! \n");
+
 	// deregister hook with netfilter
-	nf_unregister_hook(&nfho);
-	printk(KERN_INFO "NF Hook Removed! \n");
+	//nf_unregister_hook(&nfho);
+	//printk(KERN_INFO "NF Hook Removed! \n");
 
 	printk(KERN_INFO "Exiting module\n");
-	netlink_kernel_release(nl_sk);
 }
 
 // set module initialization / cleanup functions

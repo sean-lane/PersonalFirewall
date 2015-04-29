@@ -5,7 +5,7 @@
 #include <linux/netlink.h>
 
 #define print_value(x) (x==NULL?"-" : x)
-#define NETLINK_USER 10
+#define NETLINK_USER 31
 #define PAYLOAD_SIZE 200
 
 // struct for holding rule information
