@@ -219,6 +219,14 @@ static void receive_msg(struct sk_buff *skb)
 
 	nh = (struct nlmsghdr *)skb->data;
 	printk(KERN_INFO "Netlink recceived msg payload: %s\n", (char *)nlmsg_data(nh));
+	// determine what command is passed
+        char *first = strchr((char *)nlmsg_data(nh), ' ');
+        printk(KERN_INFO "first: %s\n", first);
+        char *command;
+        strncpy(command, (char *)nlmsg_data(nh), (int)first);
+        printk(KERN_INFO "command: %s\n", command);
+
+	
 	pid = nh->nlmsg_pid;
 	
 	skb_out = nlmsg_new(msg_size, 0);
