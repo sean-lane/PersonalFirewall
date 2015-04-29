@@ -226,6 +226,19 @@ static void receive_msg(struct sk_buff *skb)
         strncpy(command, (char *)nlmsg_data(nh), (int)first);
         printk(KERN_INFO "command: %s\n", command);
 
+	/*if(strcmp(command, "NEW") {
+		parse other info from userspace string
+		AddRule(...);
+		return rule added message
+	} else if(strcmp(command, "DELETE") {
+		parse rule number to delete
+		DeleteRule(rule number);
+		return rule deleted message
+	} else if(strcmp(command, "PRINT") {
+		return list of rules
+	} else {
+		return command not recognized message
+	}
 	
 	pid = nh->nlmsg_pid;
 	
