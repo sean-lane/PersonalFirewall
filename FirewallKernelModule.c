@@ -7,6 +7,7 @@
 #include <linux/ip.h>
 #include <linux/tcp.h>
 #include <linux/icmp.h>
+#include <linux/string.h>
 
 #include <linux/init.h>
 #include <net/sock.h>
