@@ -33,7 +33,8 @@ struct udphdr *udp_header;
 struct tcphdr *tcp_header;
 struct icmphdr *icmp_header;
 
-
+// unique rule numbers
+static int ruleNumber = 0;
 
 // Command structure for setting up a netfilter hook
 static struct nf_hook_ops nfho;
@@ -42,6 +43,7 @@ static struct nf_hook_ops nfho;
 struct firewall_rule {
 	int rule_number;	// bookkeeping to indicate which rule this is
 	int block_control;	// 0 for unblock, 1 for block
+	int protocol;		// 0 all, 1 icmp, 6 tcp, 17 udp
 	int port_number;	// blocks this particular port
 	int ip_address;		// block this ip address (unsure of best way to parse this)
 	
@@ -106,7 +108,7 @@ unsigned int hook_func(unsigned int hooknum,
 }
 
 // function to add firewall rule (and init rule list if need be)
-int Add_Rule(int blockControl, int portNumber, int ipAddress) {
+int Add_Rule(int blockControl, int proto, int portNumber, int ipAddress) {
 	
 	// first check and see if we have a previous list
 	if (fw_head == NULL) {
@@ -119,6 +121,7 @@ int Add_Rule(int blockControl, int portNumber, int ipAddress) {
 		// insert new rule here at head
 		fw_head->rule_number = 1;
 		fw_head->block_control = blockControl;
+		fw_head->protocol = proto;
 		fw_head->port_number = portNumber;
 		fw_head->ip_address = ipAddress;
 
@@ -133,6 +136,7 @@ int Add_Rule(int blockControl, int portNumber, int ipAddress) {
 		// set info for new rule
 		fw_current->rule_number = (fw_tail->rule_number + 1);
 		fw_current->block_control = blockControl;
+		fw_current->protocol = proto;
 		fw_current->port_number = portNumber;
 		fw_current->ip_address = ipAddress;
 
@@ -217,6 +221,8 @@ static void receive_msg(struct sk_buff *skb)
 	
 	// command issued by incoming packet
 	char *command = kmalloc(sizeof(char[2]), GFP_USER);
+
+	char *payload = (char *)nlmsg_data(nh);
 	
 	printk(KERN_INFO "Entering: %s\n", __FUNCTION__);
 
@@ -224,40 +230,59 @@ static void receive_msg(struct sk_buff *skb)
 
 	nh = (struct nlmsghdr *)skb->data;
 
-	printk(KERN_INFO "Netlink received msg payload: %s\n", (char *)nlmsg_data(nh));
+	printk(KERN_INFO "Netlink received msg payload: %s\n", payload);
 	
 	// determine what command is passed
-        strncpy(command, (char *)nlmsg_data(nh), 1);
+        strncpy(command, payload, 1);
 	command[1] = '\0';
         printk(KERN_INFO "command: %s\n", command);
 
 	if(strcmp(command, "1") == 0) {
+		int bc = 0;
+		int proto = 0;
+		int pt = 0;
+		int ip = 0; 
 		//AddRule(...);
 		//return rule added message
 		printk(KERN_INFO "command: %s\n", "new");
 	
-		char *payload = (char *)nlmsg_data(nh);
-		printk(KERN_INFO "Before Tokens: %s\n", payload);
 	
 		// parse other info from userspace string
-		char *token = strsep(&payload, " ");
-		printk(KERN_INFO "Middle Tokens\n");
+		char *token1 = strsep(&payload, " ");
+		char *token2 = strsep(&payload, " ");
+		char *token3 = strsep(&payload, " ");
+		char *token4 = strsep(&payload, " ");
+		char *token5 = strsep(&payload, " ");
 
-		int count = 0;
-		while (token != NULL) {
-			++count;
-			printk(KERN_INFO "tokens: %s\n", token);
-			if (count == 2) {
-
-			} else if (count == 3) {
-
-			} else if (count == 4) {
-
-			} else if (count == 5) {
-			
-			}
+/*		printk(KERN_INFO "tokens: %s\n", token1);
+		printk(KERN_INFO "tokens: %s\n", token2);
+		printk(KERN_INFO "tokens: %s\n", token3);
+		printk(KERN_INFO "tokens: %s\n", token4);
+		printk(KERN_INFO "tokens: %s\n", token5);
+*/
+		if(kstrtol(token2, 10, &bc) != 0) {
+			printk(KERN_INFO "Could not parse string to int");
 		}
-		printk(KERN_INFO "After Tokens\n");
+
+		if(kstrtol(token3, 10, &proto) != 0) {
+			printk(KERN_INFO "Could not parse string to int");
+		}
+
+		if(kstrtol(token4, 10, &pt) != 0) {
+			printk(KERN_INFO "Could not parse string to int");
+		}
+
+		if(kstrtol(token5, 10, &ip) != 0) {
+			printk(KERN_INFO "Could not parse string to int");
+		}
+		
+		printk(KERN_INFO "tokens2int: %d\n", bc);
+		printk(KERN_INFO "tokens3int: %d\n", proto);
+		printk(KERN_INFO "tokens4int: %d\n", pt);
+		printk(KERN_INFO "tokens5int: %d\n", ip);
+
+		Add_Rule(bc, proto, pt, ip);
+
 		pid = nh->nlmsg_pid;
 	
 		skb_out = nlmsg_new(msg_size, 0);
@@ -279,10 +304,22 @@ static void receive_msg(struct sk_buff *skb)
 		}
 	
 	} else if(strcmp(command, "2") == 0) {
+		int deleteRule = 0;
 		//parse rule number to delete
 		//DeleteRule(rule number);
 		//return rule deleted message
 		printk(KERN_INFO "command: %s\n", "delete");
+		char *token1 = strsep(&payload, " ");
+		char *token2 = strsep(&payload, " ");
+
+		if(kstrtol(token2, 10, &deleteRule) != 0) {
+			printk(KERN_INFO "Could not parse string to int");
+		}
+
+		printk(KERN_INFO "tokens2int: %d\n", deleteRule);
+
+		Remove_Rule(deleteRule);
+	
 		pid = nh->nlmsg_pid;
 	
 		skb_out = nlmsg_new(msg_size, 0);
