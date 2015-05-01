@@ -232,42 +232,123 @@ static void receive_msg(struct sk_buff *skb)
         printk(KERN_INFO "command: %s\n", command);
 
 	if(strcmp(command, "1") == 0) {
-		//parse other info from userspace string
 		//AddRule(...);
 		//return rule added message
 		printk(KERN_INFO "command: %s\n", "new");
+	
+		printk(KERN_INFO "Before Tokens\n");
+	
+		// parse other info from userspace string
+		char * token = strsep(&(char *)nlmsg_data(nh), ' ');
+		int count = 0;
+		while (token != NULL) {
+			++count;
+			printk(KERN_INFO "tokens: %s\n", token);
+			if (count == 2) {
+
+			} else if (count == 3) {
+
+			} else if (count == 4) {
+
+			} else if (count == 5) {
+			
+			}
+		}
+		printk(KERN_INFO "After Tokens\n");
+		pid = nh->nlmsg_pid;
+	
+		skb_out = nlmsg_new(msg_size, 0);
+
+		if(!skb_out) {
+			printk(KERN_ERR "Failed to allocate new skb\n");
+			kfree(command);
+			return;
+		}
+		nh = nlmsg_put(skb_out, 0, 0, NLMSG_DONE, msg_size, 0);
+		NETLINK_CB(skb_out).dst_group = 0;
+		strcpy(nlmsg_data(nh), "Added new rule");
+	
+		res = nlmsg_unicast(nl_sk, skb_out, pid);
+		
+		kfree(command);
+		if(res < 0) {
+			printk(KERN_INFO "Error while sending back to user\n");
+		}
+	
 	} else if(strcmp(command, "2") == 0) {
 		//parse rule number to delete
 		//DeleteRule(rule number);
 		//return rule deleted message
 		printk(KERN_INFO "command: %s\n", "delete");
+		pid = nh->nlmsg_pid;
+	
+		skb_out = nlmsg_new(msg_size, 0);
+	
+		if(!skb_out) {
+			printk(KERN_ERR "Failed to allocate new skb\n");
+			kfree(command);
+			return;
+		}
+		nh = nlmsg_put(skb_out, 0, 0, NLMSG_DONE, msg_size, 0);
+		NETLINK_CB(skb_out).dst_group = 0;
+		strcpy(nlmsg_data(nh), "Rule deleted");
+	
+		res = nlmsg_unicast(nl_sk, skb_out, pid);
+		
+		kfree(command);
+		if(res < 0) {
+			printk(KERN_INFO "Error while sending back to user\n");
+		}
+
 	} else if(strcmp(command, "3") == 0) {
 		//return list of rules
 		printk(KERN_INFO "command: %s\n", "print");
+		pid = nh->nlmsg_pid;
+	
+		skb_out = nlmsg_new(msg_size, 0);
+
+		if(!skb_out) {
+			printk(KERN_ERR "Failed to allocate new skb\n");
+			kfree(command);
+			return;
+		}
+		nh = nlmsg_put(skb_out, 0, 0, NLMSG_DONE, msg_size, 0);
+		NETLINK_CB(skb_out).dst_group = 0;
+		// TODO: send back all of the rules
+		strncpy(nlmsg_data(nh), msg, msg_size);
+
+		res = nlmsg_unicast(nl_sk, skb_out, pid);
+	
+		kfree(command);
+		if(res < 0) {
+			printk(KERN_INFO "Error while sending back to user\n");
+		}
+	
 	} else {
 		//return command not recognized message
 		printk(KERN_INFO "command: %s\n", "not recognized");
-	}
+		pid = nh->nlmsg_pid;
 	
-	pid = nh->nlmsg_pid;
-	
-	skb_out = nlmsg_new(msg_size, 0);
+		skb_out = nlmsg_new(msg_size, 0);
 
-	if(!skb_out) {
-		printk(KERN_ERR "Failed to allocate new skb\n");
+		if(!skb_out) {
+			printk(KERN_ERR "Failed to allocate new skb\n");
+			kfree(command);
+			return;
+		}
+		nh = nlmsg_put(skb_out, 0, 0, NLMSG_DONE, msg_size, 0);
+		NETLINK_CB(skb_out).dst_group = 0;
+		strcpy(nlmsg_data(nh), "Command not recognized");
+
+		res = nlmsg_unicast(nl_sk, skb_out, pid);
+	
 		kfree(command);
-		return;
-	}
-	nh = nlmsg_put(skb_out, 0, 0, NLMSG_DONE, msg_size, 0);
-	NETLINK_CB(skb_out).dst_group = 0;
-	strncpy(nlmsg_data(nh), msg, msg_size);
+		if(res < 0) {
+			printk(KERN_INFO "Error while sending back to user\n");
+		}
 
-	res = nlmsg_unicast(nl_sk, skb_out, pid);
-	
-	kfree(command);
-	if(res < 0) {
-		printk(KERN_INFO "Error while sending back to user\n");
 	}
+	
 }
 
 // Function to initialize firewall hooks
