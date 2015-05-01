@@ -222,18 +222,17 @@ static void receive_msg(struct sk_buff *skb)
 	// command issued by incoming packet
 	char *command = kmalloc(sizeof(char[2]), GFP_USER);
 
-	char *payload = (char *)nlmsg_data(nh);
-	
+		
 	printk(KERN_INFO "Entering: %s\n", __FUNCTION__);
 
 	msg_size = strlen (msg);
 
 	nh = (struct nlmsghdr *)skb->data;
 
-	printk(KERN_INFO "Netlink received msg payload: %s\n", payload);
+	printk(KERN_INFO "Netlink received msg payload: %s\n", (char *)nlmsg_data(nh));
 	
 	// determine what command is passed
-        strncpy(command, payload, 1);
+        strncpy(command, (char *)nlmsg_data(nh), 1);
 	command[1] = '\0';
         printk(KERN_INFO "command: %s\n", command);
 
@@ -245,6 +244,7 @@ static void receive_msg(struct sk_buff *skb)
 		//AddRule(...);
 		//return rule added message
 		printk(KERN_INFO "command: %s\n", "new");
+		char *payload = (char *)nlmsg_data(nh);
 	
 	
 		// parse other info from userspace string
@@ -309,6 +309,9 @@ static void receive_msg(struct sk_buff *skb)
 		//DeleteRule(rule number);
 		//return rule deleted message
 		printk(KERN_INFO "command: %s\n", "delete");
+		char *payload = (char *)nlmsg_data(nh);
+		
+
 		char *token1 = strsep(&payload, " ");
 		char *token2 = strsep(&payload, " ");
 
