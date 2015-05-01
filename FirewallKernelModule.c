@@ -45,7 +45,7 @@ struct firewall_rule {
 	int rule_number;	// bookkeeping to indicate which rule this is
 	int block_control;	// 0 for unblock, 1 for block
 	int protocol;		// 0 all, 1 icmp, 6 tcp, 17 udp
-	int port_number;	// blocks this particular port
+	unsigned int port_number;	// blocks this particular port
 	int ip_address;		// block this ip address (unsure of best way to parse this)
 	
 	struct firewall_rule* prev_rule;	// access to previous rule
@@ -66,6 +66,8 @@ unsigned int hook_func(unsigned int hooknum,
 	// acquire ip header of packet
 	ip_header = (struct iphdr *)skb_network_header(sock_buff);
        
+	unsigned int sport, dport;
+
 	// make sure we have something valid in the buffer, otherwise accept
         if(!sock_buff) { 
 		return NF_ACCEPT;
@@ -79,7 +81,7 @@ unsigned int hook_func(unsigned int hooknum,
 		if(fw_current->block_control == 1) {
 
 			// check if we are blocking this protocol
-			if(ip_header->protocol = fw_current->protocol) {
+			if(ip_header->protocol == fw_current->protocol) {
 				printk(KERN_INFO "Packet dropped from Firewall Rule %d: Protocol %d blocked.\n", fw_current->rule_number, ip_header->protocol);
 				return NF_DROP;
 			}
@@ -92,10 +94,12 @@ unsigned int hook_func(unsigned int hooknum,
 				// check if tcp
 				if (ip_header->protocol == 6) {
 					// grab TCP header
-					tcp_header = (struct tcphdr *)skb_transport_header(sock_buff);
-			
-					
-					if (fw_current->port_number = tcp_header->dest) {
+					//tcp_header = (struct tcphdr *)skb_transport_header(sock_buff);
+					tcp_header = (struct tcphdr *)((__u32 *)ip_header +ip_header->ihl);				
+					sport = htons((unsigned short int) tcp_header->source);
+					dport = htons((unsigned short int) tcp_header->dest);
+
+					if (fw_current->port_number == dport) {
 						printk(KERN_INFO "TCP Packet dropped from Firewall Rule %d: Port %d blocked.\n", fw_current->rule_number, fw_current->port_number);
 						return NF_DROP;
 					}
@@ -105,9 +109,12 @@ unsigned int hook_func(unsigned int hooknum,
 				// check if UDP
 				else if (ip_header->protocol == 17) {
 					// if so, grab UDP header (see udp.h)
-			                udp_header = (struct udphdr *)skb_transport_header(sock_buff);
+			                udp_header = (struct udphdr *)((__u32 *)ip_header +ip_header->ihl);
 					
-					if (fw_current->port_number = udp_header->dest) {
+					sport = htons((unsigned short int) udp_header->source);
+					dport = htons((unsigned short int) udp_header->dest);
+
+					if (fw_current->port_number == dport) {
 						printk(KERN_INFO "UDP Packet dropped from Firewall Rule %d: Port %d blocked.\n", fw_current->rule_number, fw_current->port_number);
 						return NF_DROP;
 					}
