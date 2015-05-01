@@ -216,7 +216,7 @@ static void receive_msg(struct sk_buff *skb)
 	int res;
 	
 	// command issued by incoming packet
-	char *command = kmalloc(sizeof(char[1]), GFP_USER);
+	char *command = kmalloc(sizeof(char[2]), GFP_USER);
 	
 	printk(KERN_INFO "Entering: %s\n", __FUNCTION__);
 
@@ -228,6 +228,7 @@ static void receive_msg(struct sk_buff *skb)
 	
 	// determine what command is passed
         strncpy(command, (char *)nlmsg_data(nh), 1);
+	command[1] = '\0';
         printk(KERN_INFO "command: %s\n", command);
 
 	/*if(strcmp(command, "NEW") {
