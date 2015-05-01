@@ -17,6 +17,7 @@
 #include <linux/netlink.h>
 
 #define NETLINK_USER 31
+#define print_value(x) (x==NULL?"-" : x)
 
 struct sock *nl_sk = NULL;
 
@@ -206,6 +207,32 @@ int Remove_Rule(int ruleNumber) {
 	
 	// return failure
 	return -1;
+}
+
+// function to help print out the rules
+char * Print_Rules() {
+	// iterate through rule list, searching for rule number
+	fw_current = fw_head;
+	
+	char *ruleList = "\0";
+
+	// while we aren't at the end of the list...
+	while (fw_current != NULL) {
+		ruleList = strcat(ruleList, print_value(fw_current->rule_number));
+		ruleList = strcat(ruleList, " ");	
+		ruleList = strcat(ruleList, print_value(fw_current->block_control));
+		ruleList = strcat(ruleList, " ");	
+		ruleList = strcat(ruleList, print_value(fw_current->protocol));
+		ruleList = strcat(ruleList, " ");	
+		ruleList = strcat(ruleList, print_value(fw_current->port_number));
+		ruleList = strcat(ruleList, " ");	
+		ruleList = strcat(ruleList, print_value(fw_current->ip_address));
+			
+		ruleList = strcat(ruleList, ";\0");		
+
+		fw_current = fw_current->next_rule;
+	}
+	printk(KERN_INFO "%s\n", ruleList);
 }
 
 // function to receive packet from netlink socket
