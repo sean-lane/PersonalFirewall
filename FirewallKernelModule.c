@@ -231,20 +231,23 @@ static void receive_msg(struct sk_buff *skb)
 	command[1] = '\0';
         printk(KERN_INFO "command: %s\n", command);
 
-	/*if(strcmp(command, "NEW") {
-		parse other info from userspace string
-		AddRule(...);
-		return rule added message
-	} else if(strcmp(command, "DELETE") {
-		parse rule number to delete
-		DeleteRule(rule number);
-		return rule deleted message
-	} else if(strcmp(command, "PRINT") {
-		return list of rules
+	if(strcmp(command, "1")) {
+		//parse other info from userspace string
+		//AddRule(...);
+		//return rule added message
+		printk(KERN_INFO "command: %s\n", command);
+	} else if(strcmp(command, "2")) {
+		//parse rule number to delete
+		//DeleteRule(rule number);
+		//return rule deleted message
+		printk(KERN_INFO "command: %s\n", command);
+	} else if(strcmp(command, "3")) {
+		//return list of rules
+		printk(KERN_INFO "command: %s\n", command);
 	} else {
-		return command not recognized message
+		//return command not recognized message
+		printk(KERN_INFO "command: %s\n", command);
 	}
-	*/
 	
 	pid = nh->nlmsg_pid;
 	
