@@ -210,29 +210,38 @@ int Remove_Rule(int ruleNumber) {
 }
 
 // function to help print out the rules
-char * Print_Rules() {
+char* Print_Rules(void) {
 	// iterate through rule list, searching for rule number
 	fw_current = fw_head;
 	
 	char *ruleList = "\0";
 
+	// Create a list of rules. Each piece of rule is space seperated so
+	// use ";" char as delimiter between rules
+
 	// while we aren't at the end of the list...
 	while (fw_current != NULL) {
+		printk(KERN_INFO "rule: %s\n", fw_current->rule_number);
 		ruleList = strcat(ruleList, print_value(fw_current->rule_number));
-		ruleList = strcat(ruleList, " ");	
+		ruleList = strcat(ruleList, " \0");	
 		ruleList = strcat(ruleList, print_value(fw_current->block_control));
-		ruleList = strcat(ruleList, " ");	
+		printk(KERN_INFO "rule: %s\n", print_value(fw_current->block_control));
+		ruleList = strcat(ruleList, " \0");	
 		ruleList = strcat(ruleList, print_value(fw_current->protocol));
-		ruleList = strcat(ruleList, " ");	
+		printk(KERN_INFO "rule: %s\n", print_value(fw_current->protocol));
+		ruleList = strcat(ruleList, " \0");	
 		ruleList = strcat(ruleList, print_value(fw_current->port_number));
-		ruleList = strcat(ruleList, " ");	
+		printk(KERN_INFO "rule: %s\n", print_value(fw_current->port_number));
+		ruleList = strcat(ruleList, " \0");	
 		ruleList = strcat(ruleList, print_value(fw_current->ip_address));
+		printk(KERN_INFO "rule: %s\n", print_value(fw_current->ip_address));
+
 			
 		ruleList = strcat(ruleList, ";\0");		
 
 		fw_current = fw_current->next_rule;
 	}
-	printk(KERN_INFO "%s\n", ruleList);
+	printk(KERN_INFO "rules: %s\n", ruleList);
 }
 
 // function to receive packet from netlink socket
@@ -373,6 +382,9 @@ static void receive_msg(struct sk_buff *skb)
 	} else if(strcmp(command, "3") == 0) {
 		//return list of rules
 		printk(KERN_INFO "command: %s\n", "print");
+
+		Print_Rules();
+
 		pid = nh->nlmsg_pid;
 	
 		skb_out = nlmsg_new(msg_size, 0);
