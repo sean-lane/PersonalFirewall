@@ -34,7 +34,7 @@ struct firewall_rule {
 
 static struct firewall_rule_delete {
 	char *cmd;
-	char *rule_num;
+	int rule_num;
 } rule_delete;
 
 // need send to proc funct
@@ -108,10 +108,10 @@ int get_block_control(char* blockControl) {
 
 void new_rule_kernel_comm() {
 	printf("send new rule to kernel\n");
-	char new_rule[RULE_SIZE];
+	char new_rule[RULE_SIZE] = { 0 };
 
 	//FIGURE THIS OUT FOR RULE SPECIFICS
-	sprintf(new_rule, "%s %s %s %s %s\n", "1", print_value(rule.block_control), print_value(rule.protocol), print_value(rule.port_number), print_value(rule.ip_address));
+	sprintf(new_rule, "%d %d %d %d %d\n", 1, (rule.block_control), (rule.protocol), (rule.port_number), (rule.ip_address));
 
 	printf("%s\n", new_rule);
 
@@ -120,18 +120,18 @@ void new_rule_kernel_comm() {
 
 void delete_rule_kernel_comm() {
 	printf("Send delete rule to kernel\n");
-	char *to_delete[DELETE_SIZE];
-	sprintf(to_delete, "%s %s\n", "2", print_value(rule_delete.rule_num));
+	char to_delete[DELETE_SIZE] = { 0 };
+	sprintf(to_delete, "%d %d\n", 2, (rule_delete.rule_num));
 	printf("%s\n", to_delete);
 
 	kernel_comm(to_delete, DELETE_SIZE);
 }
 
-//doesn't look like we can do this because there is no file to check the rules
+// function to print firewall rules from kernel
 void print_rules() {
 	printf("Send print rules to kernel\n");
-	char *do_print[PRINT_SIZE];
-	sprintf(do_print, "%s\n", "3");
+	char do_print[PRINT_SIZE] = { 0 };
+	sprintf(do_print, "%d\n", 3);
 	printf("Print Command: %s\n", do_print);
 
 	kernel_comm(do_print, PRINT_SIZE);
@@ -173,22 +173,22 @@ int main(int argc, char**argv) {
 			case 'd':
 				command = 2;	//delete
 				rule_delete.cmd = (char *)long_options[option_index].name;
-				rule_delete.rule_num = optarg;
+				rule_delete.rule_num = atoi(optarg);
 				break;
 			case 'o':
 				command = 3;	//print
 				break;
 			case 'i':
-				rule.ip_address = optarg;	// ip_address
+				rule.ip_address = atoi(optarg);	// ip_address
 				break;
 			case 'p':
-				rule.port_number = optarg;	//port
+				rule.port_number = atoi(optarg);	//port
 				break;
 			case 'c':
-				rule.protocol = optarg;		//protocol
+				rule.protocol = get_protocol(optarg);		//protocol
 				break;
 			case 'a':
-				rule.block_control = optarg;	//action
+				rule.block_control = get_block_control(optarg);	//action
 				break;
 			case '?':
 				break;

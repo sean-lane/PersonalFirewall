@@ -70,42 +70,53 @@ unsigned int hook_func(unsigned int hooknum,
         if(!sock_buff) { 
 		return NF_ACCEPT;
 	}
- 	
-	// check ip header protocol number: 1 for ICMP, 6 for TCP, 17 for UDP
-	// http://www.iana.org/assignments/protocol-numbers/protocol-numbers.xhtml)
-	if (ip_header->protocol == 1) {
-		// grab ICMP header
-		icmp_header = (struct icmphdr *)skb_transport_header(sock_buff);
+
+	// check if we need to block this packet with rule list by iterating through whole list
+	fw_current = fw_head;
+	while (fw_current != NULL) {
 		
-		printk(KERN_INFO "ICMP packet dropped! \n");   
-                return NF_ACCEPT;
+		// check if this is a blocking rule
+		if(fw_current->block_control == 1) {
+
+			// check if we are blocking this protocol
+			if(ip_header->protocol = fw_current->protocol) {
+				printk(KERN_INFO "Packet dropped from Firewall Rule %d: Protocol %d blocked.\n", fw_current->rule_number, ip_header->protocol);
+				return NF_DROP;
+			}
+			
+			// otherwise look at protocol header
+			else {
+
+				// check ip header protocol number: 1 for ICMP, 6 for TCP, 17 for UDP. Get header for packet
+				// http://www.iana.org/assignments/protocol-numbers/protocol-numbers.xhtml)
+				// check if tcp
+				if (ip_header->protocol == 6) {
+					// grab TCP header
+					tcp_header = (struct tcphdr *)skb_transport_header(sock_buff);
+			
+					
+					if (fw_current->port_number = tcp_header->dest) {
+						printk(KERN_INFO "TCP Packet dropped from Firewall Rule %d: Port %d blocked.\n", fw_current->rule_number, fw_current->port_number);
+						return NF_DROP;
+					}
+
+				}
+
+				// check if UDP
+				else if (ip_header->protocol == 17) {
+					// if so, grab UDP header (see udp.h)
+			                udp_header = (struct udphdr *)skb_transport_header(sock_buff);
+					
+					if (fw_current->port_number = udp_header->dest) {
+						printk(KERN_INFO "UDP Packet dropped from Firewall Rule %d: Port %d blocked.\n", fw_current->rule_number, fw_current->port_number);
+						return NF_DROP;
+					}
+			        }
+			}
+		}
+		fw_current = fw_current->next_rule;
 	}
-
-	// check if tcp
-	else if (ip_header->protocol == 6) {
-		// grab TCP header
-		tcp_header = (struct tcphdr *)skb_transport_header(sock_buff);
-
-		printk(KERN_INFO "TCP packet dropped! \n");   
-                return NF_ACCEPT;
-	}
-
-	// check if UDP
-	else if (ip_header->protocol == 17) {
-		// if so, grab UDP header (see udp.h)
-                udp_header = (struct udphdr *)skb_transport_header(sock_buff);
- 
-                printk(KERN_INFO "UDP packet dropped! \n");   
-                return NF_ACCEPT;
-        }
-
-	else {
-		// tell kernel that we dropped a strange packet
-		printk(KERN_INFO "Other packet Dropped! \n");
-
-		// drop the packet
-		return NF_ACCEPT;
-	}
+	return NF_ACCEPT;
 }
 
 // function to add firewall rule (and init rule list if need be)
@@ -214,30 +225,18 @@ char* Print_Rules(void) {
 	// iterate through rule list, searching for rule number
 	fw_current = fw_head;
 	
-	char *ruleList = "\0";
+	char ruleList[1500] = { 0 };
 
 	// Create a list of rules. Each piece of rule is space seperated so
 	// use ";" char as delimiter between rules
 
 	// while we aren't at the end of the list...
 	while (fw_current != NULL) {
-		printk(KERN_INFO "rule: %s\n", fw_current->rule_number);
-		ruleList = strcat(ruleList, print_value(fw_current->rule_number));
-		ruleList = strcat(ruleList, " \0");	
-		ruleList = strcat(ruleList, print_value(fw_current->block_control));
-		printk(KERN_INFO "rule: %s\n", print_value(fw_current->block_control));
-		ruleList = strcat(ruleList, " \0");	
-		ruleList = strcat(ruleList, print_value(fw_current->protocol));
-		printk(KERN_INFO "rule: %s\n", print_value(fw_current->protocol));
-		ruleList = strcat(ruleList, " \0");	
-		ruleList = strcat(ruleList, print_value(fw_current->port_number));
-		printk(KERN_INFO "rule: %s\n", print_value(fw_current->port_number));
-		ruleList = strcat(ruleList, " \0");	
-		ruleList = strcat(ruleList, print_value(fw_current->ip_address));
-		printk(KERN_INFO "rule: %s\n", print_value(fw_current->ip_address));
-
-			
-		ruleList = strcat(ruleList, ";\0");		
+		sprintf(ruleList+ strlen(ruleList), "\nRule Number: %d; ", (fw_current->rule_number));
+		sprintf(ruleList+ strlen(ruleList), "Blocking? %d; ", (fw_current->block_control));
+		sprintf(ruleList+ strlen(ruleList), "Protocol: %d; ", (fw_current->protocol));
+		sprintf(ruleList+ strlen(ruleList), "Port Number %d; ", (fw_current->port_number));
+		sprintf(ruleList+ strlen(ruleList), "IP: %d; ", (fw_current->ip_address));	
 
 		fw_current = fw_current->next_rule;
 	}
@@ -341,6 +340,7 @@ static void receive_msg(struct sk_buff *skb)
 	
 	} else if(strcmp(command, "2") == 0) {
 		int deleteRule = 0;
+		int success = -1;
 		//parse rule number to delete
 		//DeleteRule(rule number);
 		//return rule deleted message
@@ -357,7 +357,7 @@ static void receive_msg(struct sk_buff *skb)
 
 		printk(KERN_INFO "tokens2int: %d\n", deleteRule);
 
-		Remove_Rule(deleteRule);
+		success = Remove_Rule(deleteRule);
 	
 		pid = nh->nlmsg_pid;
 	
@@ -370,7 +370,14 @@ static void receive_msg(struct sk_buff *skb)
 		}
 		nh = nlmsg_put(skb_out, 0, 0, NLMSG_DONE, msg_size, 0);
 		NETLINK_CB(skb_out).dst_group = 0;
-		strcpy(nlmsg_data(nh), "Rule deleted");
+
+		// check if successful
+		if (success = 0) {
+			strcpy(nlmsg_data(nh), "Rule deleted");
+		}
+		else {
+			strcpy(nlmsg_data(nh), "Rule does not exist!\n");
+		}
 	
 		res = nlmsg_unicast(nl_sk, skb_out, pid);
 		
@@ -397,7 +404,7 @@ static void receive_msg(struct sk_buff *skb)
 		nh = nlmsg_put(skb_out, 0, 0, NLMSG_DONE, msg_size, 0);
 		NETLINK_CB(skb_out).dst_group = 0;
 		// TODO: send back all of the rules
-		strncpy(nlmsg_data(nh), msg, msg_size);
+		strncpy(nlmsg_data(nh), msg, sizeof(msg));
 
 		res = nlmsg_unicast(nl_sk, skb_out, pid);
 	
@@ -478,6 +485,8 @@ static int Start_Firewall(void)
 // function to clean up firewall data
 static void Stop_Firewall(void)
 {
+	int ruleNum = 0;
+	
 	// free socket
 	netlink_kernel_release(nl_sk);
 	printk(KERN_INFO "Netlink socket released! \n");
@@ -487,6 +496,14 @@ static void Stop_Firewall(void)
 	printk(KERN_INFO "NF Hook Removed! \n");
 
 	printk(KERN_INFO "Exiting module\n");
+
+	// cleanup rules
+	fw_current = fw_head;
+	while (fw_current != NULL) {
+		ruleNum = fw_current->rule_number;
+		fw_current = fw_current->next_rule;
+		Remove_Rule(ruleNum);
+	}
 }
 
 // set module initialization / cleanup functions
