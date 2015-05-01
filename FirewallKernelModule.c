@@ -236,10 +236,13 @@ static void receive_msg(struct sk_buff *skb)
 		//return rule added message
 		printk(KERN_INFO "command: %s\n", "new");
 	
-		printk(KERN_INFO "Before Tokens\n");
+		char *payload = (char *)nlmsg_data(nh);
+		printk(KERN_INFO "Before Tokens: %s\n", payload);
 	
 		// parse other info from userspace string
-		char * token = strsep((char *)nlmsg_data(nh), ' ');
+		char *token = strsep(&payload, " ");
+		printk(KERN_INFO "Middle Tokens\n");
+
 		int count = 0;
 		while (token != NULL) {
 			++count;
