@@ -3,10 +3,16 @@
 #include <getopt.h>
 #include <sys/socket.h>
 #include <linux/netlink.h>
+#include <string.h>
 
 #define print_value(x) (x==NULL?"-" : x)
 #define NETLINK_USER 31
 #define PAYLOAD_SIZE 200
+
+#define RULE_SIZE 200
+#define DELETE_SIZE 100
+#define PRINT_SIZE 2
+
 struct nlmsghdr *nh = NULL;	//nmlsghdr with payload
 struct sockaddr_nl src_addr, dest_addr;
 struct iovec iov;
@@ -32,7 +38,7 @@ static struct firewall_rule_delete {
 } rule_delete;
 
 // need send to proc funct
-static void kernel_comm(char *str) {
+static void kernel_comm(char* str, size_t len) {
 
 	sock_fd = socket(PF_NETLINK, SOCK_RAW, NETLINK_USER);
 	if(sock_fd < 0) {
@@ -57,7 +63,7 @@ static void kernel_comm(char *str) {
 	nh->nlmsg_pid = getpid();
 	nh->nlmsg_flags = 0;
 
-	strcpy(NLMSG_DATA(nh), str);
+	strncpy(NLMSG_DATA(nh), str, len);
 	
 	iov.iov_base = (void *)nh;
 	iov.iov_len = nh->nlmsg_len;
@@ -102,43 +108,43 @@ int get_block_control(char* blockControl) {
 
 void new_rule_kernel_comm() {
 	printf("send new rule to kernel\n");
-	char new_rule[200];
+	char new_rule[RULE_SIZE];
 	//FIGURE THIS OUT FOR RULE SPECIFICS
-	sprintf(new_rule, "%s %s %s %s %s\n", "NEW", print_value(rule.block_control), print_value(rule.protocol), print_value(rule.port_number), print_value(rule.ip_address));
+	sprintf(new_rule, "%s %s %s %s %s\n", "1", print_value(rule.block_control), print_value(rule.protocol), print_value(rule.port_number), print_value(rule.ip_address));
 
 	printf("%s\n", new_rule);
 
-	kernel_comm(new_rule);
+	kernel_comm(new_rule, RULE_SIZE);
 }
 
 void delete_rule_kernel_comm() {
 	printf("Send delete rule to kernel\n");
-	char *to_delete[100];
-	sprintf(to_delete, "%s %s\n", "DELETE", print_value(rule_delete.rule_num));
+	char *to_delete[DELETE_SIZE];
+	sprintf(to_delete, "%s %s\n", "2", print_value(rule_delete.rule_num));
 	printf("%s\n", to_delete);
 
-	kernel_comm(to_delete);
+	kernel_comm(to_delete, DELETE_SIZE);
 }
 
 //doesn't look like we can do this because there is no file to check the rules
 void print_rules() {
 	printf("Send print rules to kernel\n");
-	char *do_print[5];
-	sprintf(do_print, "%s\n", "PRINT");
+	char *do_print[PRINT_SIZE];
+	sprintf(do_print, "%s\n", "3");
 	printf("Print Command: %s\n", do_print);
 
-	kernel_comm(do_print);
+	kernel_comm(do_print, PRINT_SIZE);
 }
 
 
 int main(int argc, char**argv) {
-	int c;
+	char c;
 	int command = 1;	// 1-new rule, 2-delete, 3-print
 
-	rule.rule_number = NULL;
-	rule.block_control = NULL;
-	rule.port_number = NULL;
-	rule.ip_address = NULL;
+	rule.rule_number = 0;
+	rule.block_control = 0;
+	rule.port_number = 0;
+	rule.ip_address = 0;
 
 	while(1) {
 		static struct option long_options[] =
@@ -192,6 +198,7 @@ int main(int argc, char**argv) {
 			printf("%s = %s\n", long_options[option_index].name, optarg);
 		}
 	}
+
 	if(command == 1) {
 		//SEND NEW RULE TO KERNEL
 		printf("%s\n", "new command");

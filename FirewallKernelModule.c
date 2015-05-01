@@ -204,9 +204,10 @@ int Remove_Rule(int ruleNumber) {
 	return -1;
 }
 
+// function to receive packet from netlink socket
 static void receive_msg(struct sk_buff *skb) 
 {
-
+	// netlink overhead declarations
 	struct nlmsghdr *nh;
 	int pid;
 	struct sk_buff *skb_out;
@@ -214,17 +215,19 @@ static void receive_msg(struct sk_buff *skb)
 	char *msg = "Hello from kernel";
 	int res;
 	
+	// command issued by incoming packet
+	char *command = kmalloc(sizeof(char[1]), GFP_USER);
+	
 	printk(KERN_INFO "Entering: %s\n", __FUNCTION__);
 
 	msg_size = strlen (msg);
 
 	nh = (struct nlmsghdr *)skb->data;
-	printk(KERN_INFO "Netlink recceived msg payload: %s\n", (char *)nlmsg_data(nh));
+
+	printk(KERN_INFO "Netlink received msg payload: %s\n", (char *)nlmsg_data(nh));
+	
 	// determine what command is passed
-        char *first = strchr((char *)nlmsg_data(nh), ' ');
-        printk(KERN_INFO "first: %s\n", first);
-        char *command;
-        strncpy(command, (char *)nlmsg_data(nh), (int)first);
+        strncpy(command, (char *)nlmsg_data(nh), 1);
         printk(KERN_INFO "command: %s\n", command);
 
 	/*if(strcmp(command, "NEW") {
@@ -248,6 +251,7 @@ static void receive_msg(struct sk_buff *skb)
 
 	if(!skb_out) {
 		printk(KERN_ERR "Failed to allocate new skb\n");
+		kfree(command);
 		return;
 	}
 	nh = nlmsg_put(skb_out, 0, 0, NLMSG_DONE, msg_size, 0);
@@ -255,7 +259,8 @@ static void receive_msg(struct sk_buff *skb)
 	strncpy(nlmsg_data(nh), msg, msg_size);
 
 	res = nlmsg_unicast(nl_sk, skb_out, pid);
-
+	
+	kfree(command);
 	if(res < 0) {
 		printk(KERN_INFO "Error while sending back to user\n");
 	}
@@ -311,8 +316,8 @@ static void Stop_Firewall(void)
 	printk(KERN_INFO "Netlink socket released! \n");
 
 	// deregister hook with netfilter
-	//nf_unregister_hook(&nfho);
-	//printk(KERN_INFO "NF Hook Removed! \n");
+	nf_unregister_hook(&nfho);
+	printk(KERN_INFO "NF Hook Removed! \n");
 
 	printk(KERN_INFO "Exiting module\n");
 }
