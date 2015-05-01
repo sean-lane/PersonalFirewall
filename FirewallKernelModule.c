@@ -239,7 +239,7 @@ static void receive_msg(struct sk_buff *skb)
 		printk(KERN_INFO "Before Tokens\n");
 	
 		// parse other info from userspace string
-		char * token = strsep(&(char *)nlmsg_data(nh), ' ');
+		char * token = strsep((char *)nlmsg_data(nh), ' ');
 		int count = 0;
 		while (token != NULL) {
 			++count;

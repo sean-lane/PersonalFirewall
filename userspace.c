@@ -5,7 +5,7 @@
 #include <linux/netlink.h>
 #include <string.h>
 
-#define print_value(x) (x==NULL?"-" : x)
+#define print_value(x) (x==0?"-" : x)
 #define NETLINK_USER 31
 #define PAYLOAD_SIZE 200
 
@@ -109,12 +109,15 @@ int get_block_control(char* blockControl) {
 void new_rule_kernel_comm() {
 	printf("send new rule to kernel\n");
 	char new_rule[RULE_SIZE];
+	printf("%s\n", rule.protocol);
+
+	printf("%s %s %s %s\n", print_value(rule.block_control), print_value(rule.protocol), print_value(rule.port_number), print_value(rule.ip_address));
 	//FIGURE THIS OUT FOR RULE SPECIFICS
 	sprintf(new_rule, "%s %s %s %s %s\n", "1", print_value(rule.block_control), print_value(rule.protocol), print_value(rule.port_number), print_value(rule.ip_address));
 
 	printf("%s\n", new_rule);
 
-	kernel_comm(new_rule, RULE_SIZE);
+//	kernel_comm(new_rule, RULE_SIZE);
 }
 
 void delete_rule_kernel_comm() {
@@ -201,6 +204,7 @@ int main(int argc, char**argv) {
 
 	if(command == 1) {
 		//SEND NEW RULE TO KERNEL
+		printf("%d\n", rule.block_control);
 		printf("%s\n", "new command");
 		new_rule_kernel_comm();	
 	} else if (command == 2) {
